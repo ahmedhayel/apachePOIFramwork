@@ -11,9 +11,11 @@ import java.util.List;
 
 import org.apache.poi.hssf.util.HSSFColor;
 import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.DataFormatter;
 import org.apache.poi.ss.usermodel.DateUtil;
 import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.xssf.usermodel.XSSFCell;
 import org.apache.poi.xssf.usermodel.XSSFCellStyle;
 import org.apache.poi.xssf.usermodel.XSSFFont;
@@ -28,16 +30,16 @@ public class ApachePlugin {
 	private String fileName;
 	private String sheetName;
 	private List<?> content;
-	private ColorsChoice colorHeaders;
-	private ColorsChoice colorContent;
+	List<String> headers;
+	private String title;
 
 	public ApachePlugin() {
 		super();
 		// TODO Auto-generated constructor stub
 	}
 
-	public ApachePlugin(String path, String fileName, String sheetName, List<?> content, ColorsChoice colorHeaders,
-			ColorsChoice colorContent) throws FileNotFoundException {
+	public ApachePlugin(String path, String fileName, String sheetName, List<String> headers, List<?> content,
+			String title) throws FileNotFoundException {
 		super();
 
 		this.path = path;
@@ -48,10 +50,8 @@ public class ApachePlugin {
 		} else {
 			this.content = content;
 		}
-
-		this.colorHeaders = colorHeaders;
-
-		this.colorContent = colorContent;
+		this.headers = headers;
+		this.title = title;
 	}
 
 	public ApachePlugin(String path, String fileName, String sheetName) {
@@ -93,20 +93,20 @@ public class ApachePlugin {
 		this.content = content;
 	}
 
-	public ColorsChoice getColorHeaders() {
-		return colorHeaders;
+	public List<String> getHeaders() {
+		return headers;
 	}
 
-	public void setColorHeaders(ColorsChoice colorHeaders) {
-		this.colorHeaders = colorHeaders;
+	public void setHeaders(List<String> headers) {
+		this.headers = headers;
 	}
 
-	public ColorsChoice getColorContent() {
-		return colorContent;
+	public String getTitle() {
+		return title;
 	}
 
-	public void setColorContent(ColorsChoice colorContent) {
-		this.colorContent = colorContent;
+	public void setTitle(String title) {
+		this.title = title;
 	}
 
 	public void createNewExcelFile() {
@@ -121,37 +121,55 @@ public class ApachePlugin {
 
 			XSSFSheet sheet = workbook.createSheet(sheetName);
 
+			// title
+
+			XSSFRow rowtitle = sheet.createRow(0);
+			XSSFCell cellTitle = rowtitle.createCell(0);
+			cellTitle.setCellValue(title);
+			sheet.addMergedRegion(new CellRangeAddress(0, // first row (0-based)
+					0, // last row (0-based)
+					0, // first column (0-based)
+					headers.size() - 1 // last column (0-based)
+			));
+
+			XSSFCellStyle style1 = workbook.createCellStyle();
+			style1.setAlignment(XSSFCellStyle.ALIGN_CENTER);
+			cellTitle.setCellStyle(style1);
+
 			// header
 
-			XSSFRow rowHeader = sheet.createRow(0);
-			Field[] fieldsHeader = content.get(0).getClass().getDeclaredFields();
+			XSSFRow rowHeader = sheet.createRow(1);
 
-			for (int i = 0; i < fieldsHeader.length; i++) {
+			for (int i = 0; i < headers.size(); i++) {
 
 				XSSFCell cellheader = rowHeader.createCell(i);
-				cellheader.setCellValue(fieldsHeader[i].getName());
+				cellheader.setCellValue(headers.get(i));
 				XSSFFont font = workbook.createFont();
 
-				font.setFontHeightInPoints((short) 18);
+				font.setFontHeightInPoints((short) 12);
 
 				font.setFontName("Goudy Old Style");
 
 				font.setBold(true);
 
-				font.setColor(this.color(colorHeaders));
+				font.setColor(this.color(ColorsChoice.WHITE));
 
 				XSSFCellStyle style = workbook.createCellStyle();
 
 				style.setFont(font);
+				style.setAlignment(XSSFCellStyle.ALIGN_CENTER);
+				style.setFillForegroundColor(this.color(ColorsChoice.DARK_GREEN));
+				style.setFillPattern(CellStyle.SOLID_FOREGROUND);
 
 				cellheader.setCellStyle(style);
+				sheet.setColumnWidth(i, 30);
 
 			}
 
 			// write content
 
 			for (int i = 0; i < content.size(); i++) {
-				XSSFRow rowContent = sheet.createRow(i + 1);
+				XSSFRow rowContent = sheet.createRow(i + 2);
 				Field[] fieldsContent = content.get(i).getClass().getDeclaredFields();
 				for (int j = 0; j < fieldsContent.length; j++) {
 
@@ -164,18 +182,17 @@ public class ApachePlugin {
 
 					XSSFFont fontContent = workbook.createFont();
 
-					fontContent.setFontHeightInPoints((short) 14);
+					fontContent.setFontHeightInPoints((short) 10);
 
 					fontContent.setFontName("Calibri Light");
-
-					fontContent.setColor(this.color(colorContent));
 
 					XSSFCellStyle style = workbook.createCellStyle();
 
 					style.setFont(fontContent);
+					style.setAlignment(XSSFCellStyle.ALIGN_CENTER);
 
 					cellContent.setCellStyle(style);
-
+					
 				}
 			}
 
@@ -198,39 +215,61 @@ public class ApachePlugin {
 			FileInputStream excelFile = new FileInputStream(new File(FILE_NAME));
 			XSSFWorkbook workbook = new XSSFWorkbook(excelFile);
 
-			XSSFSheet sheet = workbook.getSheet(sheetName);
+			XSSFSheet sheet;
+			if (workbook.getSheet(sheetName) == null) {
+				sheet = workbook.createSheet(sheetName);
+			} else {
+				sheet = workbook.getSheet(sheetName);
+			}
+
+			// title
+
+			XSSFRow rowtitle = sheet.createRow(0);
+			XSSFCell cellTitle = rowtitle.createCell(0);
+			cellTitle.setCellValue(title);
+			sheet.addMergedRegion(new CellRangeAddress(0, // first row (0-based)
+					0, // last row (0-based)
+					0, // first column (0-based)
+					headers.size() - 1 // last column (0-based)
+			));
+
+			XSSFCellStyle style1 = workbook.createCellStyle();
+			style1.setAlignment(XSSFCellStyle.ALIGN_CENTER);
+			cellTitle.setCellStyle(style1);
 
 			// header
 
-			XSSFRow rowHeader = sheet.createRow(0);
-			Field[] fieldsHeader = content.get(0).getClass().getDeclaredFields();
+			XSSFRow rowHeader = sheet.createRow(1);
 
-			for (int i = 0; i < fieldsHeader.length; i++) {
+			for (int i = 0; i < headers.size(); i++) {
 
 				XSSFCell cellheader = rowHeader.createCell(i);
-				cellheader.setCellValue(fieldsHeader[i].getName());
+				cellheader.setCellValue(headers.get(i));
 				XSSFFont font = workbook.createFont();
 
-				font.setFontHeightInPoints((short) 18);
+				font.setFontHeightInPoints((short) 12);
 
-				font.setFontName("Goudy Old Style");
+				font.setFontName("Calibri");
 
 				font.setBold(true);
 
-				font.setColor(this.color(colorHeaders));
+				font.setColor(this.color(ColorsChoice.WHITE));
 
 				XSSFCellStyle style = workbook.createCellStyle();
 
 				style.setFont(font);
-
+				style.setAlignment(XSSFCellStyle.ALIGN_CENTER);
+				style.setFillForegroundColor(this.color(ColorsChoice.DARK_GREEN));
+				style.setFillPattern(CellStyle.SOLID_FOREGROUND);
 				cellheader.setCellStyle(style);
+				sheet.setColumnWidth(i, 8000);
 
 			}
 
 			// write content
 
 			for (int i = 0; i < content.size(); i++) {
-				XSSFRow rowContent = sheet.createRow(i + 1);
+				XSSFRow rowContent = sheet.createRow(i + 2);
 				Field[] fieldsContent = content.get(i).getClass().getDeclaredFields();
 				for (int j = 0; j < fieldsContent.length; j++) {
 
@@ -243,21 +282,19 @@ public class ApachePlugin {
 
 					XSSFFont fontContent = workbook.createFont();
 
-					fontContent.setFontHeightInPoints((short) 12);
+					fontContent.setFontHeightInPoints((short) 10);
 
 					fontContent.setFontName("Calibri Light");
-
-					fontContent.setColor(this.color(colorContent));
 
 					XSSFCellStyle style = workbook.createCellStyle();
 
 					style.setFont(fontContent);
-
+					style.setAlignment(XSSFCellStyle.ALIGN_CENTER);
 					cellContent.setCellStyle(style);
 
 				}
 			}
-
+			sheet.autoSizeColumn(5);
 			FileOutputStream outputStream = new FileOutputStream(FILE_NAME);
 			workbook.write(outputStream);
 			outputStream.close();
@@ -277,7 +314,7 @@ public class ApachePlugin {
 		case YELLOW:
 			return HSSFColor.YELLOW.index;
 		case DARK_GREEN:
-			return HSSFColor.DARK_GREEN.index;
+			return HSSFColor.GREEN.index;
 		case SKY_BLUE:
 			return HSSFColor.SKY_BLUE.index;
 		case WHITE:
@@ -320,7 +357,8 @@ public class ApachePlugin {
 		DataFormatter formatter = new DataFormatter();
 
 		// read file
-
+		System.out.println("====================================================");
+		System.out.println("=============== file content ======================");
 		FileInputStream fis = new FileInputStream(new File(FILE_NAME));
 		XSSFWorkbook wb = new XSSFWorkbook(fis);
 		XSSFSheet sheet1 = wb.getSheet(sheetName);
@@ -333,8 +371,8 @@ public class ApachePlugin {
 				switch (cell.getCellTypeEnum()) {
 				case STRING:
 					o = cell.getRichStringCellValue().getString();
-					// System.out.print(cell.getRichStringCellValue().getString()
-					// + " \t\t");
+					 System.out.print(cell.getRichStringCellValue().getString()
+					 + " \t\t");
 					break;
 				case NUMERIC:
 					if (DateUtil.isCellDateFormatted(cell)) {
@@ -366,6 +404,9 @@ public class ApachePlugin {
 			objects.add(object);
 			i = 0;
 		}
+		System.out.println("====================================================");
+		System.out.println("====================================================");
+		System.out.println();
 		return objects;
 	}
 }
